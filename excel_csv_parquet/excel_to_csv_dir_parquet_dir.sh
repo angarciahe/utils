@@ -127,23 +127,46 @@ echo ""
 
 echo "Iniciando conversión a Parquet en '$parquet_dir'..."
 
+# Función para detectar tildes y ñ
+detect_encoding() {
+    local file="$1"
+    if grep -qP '[áéíóúÁÉÍÓÚñÑ]' "$file"; then
+        echo "latin1"
+    else
+        echo "utf-8"
+    fi
+}
+
 start_total=$(date +%s)
 
 for csv_file in "$output_dir"/*.csv; do
-    file_name=$(basename "$csv_file" .csv)
-    parquet_file="${parquet_dir}/${file_name}.parquet"
+    base_name=$(basename "$csv_file" .csv)
+    parquet_file="${parquet_dir}/${base_name}_parquet.parquet"
 
-    # Detectar encoding para la conversión
-    # Se asume latin1 si hay tildes, de lo contrario utf-8
-    encoding=$(head -n 1 "$csv_file" | grep -E '[ñÑáéíóúÁÉÍÓÚ]' && echo "latin1" || echo "utf-8")
+    # Determinar encoding
+    encoding=$(detect_encoding "$csv_file")
 
-    echo "Convirtiendo '$csv_file' a '$parquet_file' usando encoding $encoding..."
+    # Si el encoding es latin1, convertir temporalmente a utf-8
+    if [ "$encoding" == "latin1" ]; then
+        temp_file="${output_dir}/temp_${base_name}.csv"
+        echo "Convirtiendo '$csv_file' de latin1 a utf-8..."
+        iconv -f latin1 -t utf-8 "$csv_file" -o "$temp_file"
+        csv_file="$temp_file"
+    fi
 
-    csv2parquet "$csv_file" --inputencoding "$encoding" --output "$parquet_file"
+    # Convertir a Parquet
+    echo "Convirtiendo '$csv_file' a Parquet..."
+    csv2parquet "$csv_file" --output "$parquet_file"
+
     if [[ $? -ne 0 ]]; then
         echo "Error al convertir '$csv_file' a Parquet."
     else
         echo "Archivo convertido a '$parquet_file'."
+    fi
+
+    # Eliminar archivo temporal
+    if [[ -f "$temp_file" ]]; then
+        rm "$temp_file"
     fi
 done
 

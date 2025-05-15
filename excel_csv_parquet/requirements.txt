@@ -1,0 +1,4 @@
+# recordar usar  dos2unix script_sh.sh al crear el archivo inicialmente como txt, esto corrige saltos de línea para que sean legibles por el shell
+
+xlsx2csv
+unzip
