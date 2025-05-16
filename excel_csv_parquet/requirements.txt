@@ -2,3 +2,4 @@
 
 xlsx2csv
 unzip
+pyarrow
